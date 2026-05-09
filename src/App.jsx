@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, createContext, useContext, useMemo } from "react";
 import {
   buildAssessmentInviteMailto,
   isEmailJsConfigured,
@@ -500,130 +500,249 @@ Respond with valid JSON only.`;
 const uid = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 const nowISO = () => new Date().toISOString();
 
-// ─── COLOR PALETTE (colourful light) ───────────────────────────────────────────
-const C = {
-  bg: "#f8f7ff",
-  bgMuted: "#eef2ff",
-  surface: "#ffffff",
-  surfaceHover: "#fafbff",
-  border: "#c7d2fe",
+// ─── THEME (light / dark / system) ────────────────────────────────────────────
+const THEME_PREF_KEY = "hireai-appearance";
 
-  accent: "#6366f1",
-  accent2: "#a855f7",
-  accent3: "#ec4899",
-  cyan: "#06b6d4",
-  coral: "#f97316",
+const ThemeCtx = createContext(null);
 
-  accentDim: "rgba(99, 102, 241, 0.16)",
-  text: "#0f172a",
-  muted: "#575d73",
-  success: "#10b981",
-  warning: "#f59e0b",
-  danger: "#ef4444",
-  purple: "#c026d3",
-};
+function ThemeProvider({ children }) {
+  const [pref, setPrefState] = useState(() => {
+    try {
+      const s = localStorage.getItem(THEME_PREF_KEY);
+      if (s === "light" || s === "dark" || s === "system") return s;
+    } catch {
+      /* ignore */
+    }
+    return "system";
+  });
+  const [systemDark, setSystemDark] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 
-const S = {
-  app: {
-    minHeight: "100vh",
-    backgroundColor: C.bg,
-    backgroundImage: `
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const listener = () => setSystemDark(mq.matches);
+    mq.addEventListener("change", listener);
+    return () => mq.removeEventListener("change", listener);
+  }, []);
+
+  const effective = pref === "system" ? (systemDark ? "dark" : "light") : pref;
+  const isDark = effective === "dark";
+
+  const setPref = (next) => {
+    setPrefState(next);
+    try {
+      localStorage.setItem(THEME_PREF_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const themeValue = useMemo(() => {
+    const C = buildColors(isDark);
+    const S = buildStyles(C, isDark);
+    return { C, S, pref, setPref, effective, isDark };
+  }, [isDark, pref]);
+
+  useEffect(() => {
+    const { effective: eff, isDark: dark, C } = themeValue;
+    document.documentElement.dataset.theme = eff;
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    document.body.style.backgroundColor = C.bg;
+    document.body.style.color = C.text;
+  }, [themeValue]);
+
+  return <ThemeCtx.Provider value={themeValue}>{children}</ThemeCtx.Provider>;
+}
+
+function useTheme() {
+  const v = useContext(ThemeCtx);
+  if (!v) throw new Error("useTheme must be used inside ThemeProvider");
+  return v;
+}
+
+function useResponsive(bp = 880) {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = () => setCompact(mq.matches);
+    fn();
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, [bp]);
+  return compact;
+}
+
+function buildColors(isDark) {
+  if (!isDark) {
+    return {
+      bg: "#f8f7ff",
+      bgMuted: "#eef2ff",
+      surface: "#ffffff",
+      surfaceHover: "#fafbff",
+      border: "#c7d2fe",
+      accent: "#6366f1",
+      accent2: "#a855f7",
+      accent3: "#ec4899",
+      cyan: "#06b6d4",
+      coral: "#f97316",
+      accentDim: "rgba(99, 102, 241, 0.16)",
+      text: "#0f172a",
+      muted: "#575d73",
+      success: "#10b981",
+      warning: "#f59e0b",
+      danger: "#ef4444",
+      purple: "#c026d3",
+      modalBackdrop: "rgba(15, 23, 42, 0.48)",
+      shellTint: "",
+      sidebarGradient:
+        "linear-gradient(175deg, #fdf4ff 0%, #eef2ff 38%, #ecfeff 72%, #fffbeb 100%)",
+      inputInset: "inset 0 1px 2px rgba(99, 102, 241, 0.06)",
+      cardGlow:
+        "0 4px 28px rgba(99, 102, 241, 0.09), 0 2px 10px rgba(236, 72, 153, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95)",
+      loginToggleShadow: "0 2px 12px rgba(15, 23, 42, 0.08)",
+    };
+  }
+  return {
+    bg: "#0b0c12",
+    bgMuted: "#13151f",
+    surface: "#151822",
+    surfaceHover: "#1a1e2e",
+    border: "#2d3352",
+    accent: "#818cf8",
+    accent2: "#c084fc",
+    accent3: "#f472b6",
+    cyan: "#22d3ee",
+    coral: "#fb923c",
+    accentDim: "rgba(129, 140, 248, 0.22)",
+    text: "#f1f5f9",
+    muted: "#94a3b8",
+    success: "#34d399",
+    warning: "#fbbf24",
+    danger: "#f87171",
+    purple: "#e879f9",
+    modalBackdrop: "rgba(2, 6, 23, 0.78)",
+    shellTint: "rgba(15, 23, 42, 0.5)",
+    sidebarGradient:
+      "linear-gradient(175deg, #18101f 0%, #121726 38%, #0f1424 72%, #1a1610 100%)",
+    inputInset: "inset 0 1px 2px rgba(0, 0, 0, 0.35)",
+    cardGlow:
+      "0 4px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.06) inset",
+    loginToggleShadow: "0 2px 16px rgba(0, 0, 0, 0.35)",
+  };
+}
+
+function buildStyles(C, isDark) {
+  const badgeFg = {
+    success: isDark ? "#6ee7b7" : "#047857",
+    warning: isDark ? "#fcd34d" : "#b45309",
+    danger: isDark ? "#fca5a5" : "#b91c1c",
+    default: isDark ? "#a5b4fc" : "#4338ca",
+  };
+  const appLayers = isDark
+    ? `
+      radial-gradient(ellipse 100% 85% at 0% -15%, rgba(99, 102, 241, 0.2), transparent 52%),
+      radial-gradient(ellipse 90% 75% at 105% 5%, rgba(236, 72, 153, 0.14), transparent 48%),
+      radial-gradient(ellipse 75% 65% at 100% 105%, rgba(6, 182, 212, 0.12), transparent 46%),
+      radial-gradient(ellipse 95% 80% at -5% 90%, rgba(249, 115, 22, 0.1), transparent 48%),
+      radial-gradient(ellipse 70% 55% at 48% 45%, rgba(192, 38, 211, 0.05), transparent 52%)`
+    : `
       radial-gradient(ellipse 100% 85% at 0% -15%, rgba(129, 140, 248, 0.35), transparent 52%),
       radial-gradient(ellipse 90% 75% at 105% 5%, rgba(236, 72, 153, 0.22), transparent 48%),
       radial-gradient(ellipse 75% 65% at 100% 105%, rgba(6, 182, 212, 0.2), transparent 46%),
       radial-gradient(ellipse 95% 80% at -5% 90%, rgba(249, 115, 22, 0.14), transparent 48%),
-      radial-gradient(ellipse 70% 55% at 48% 45%, rgba(192, 38, 211, 0.06), transparent 52%)
-    `,
-    color: C.text,
-    fontFamily: "'DM Sans', system-ui, sans-serif",
-  },
-  card: {
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 14,
-    padding: "1.5rem",
-    boxShadow:
-      "0 4px 28px rgba(99, 102, 241, 0.09), 0 2px 10px rgba(236, 72, 153, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.95)",
-  },
-  btn: (variant = "primary", size = "md") => ({
-    padding: size === "sm" ? "8px 16px" : "11px 22px",
-    borderRadius: 10,
-    border: variant === "ghost" ? `1px solid ${C.border}` : "none",
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: size === "sm" ? 13 : 14,
-    background:
-      variant === "primary"
-        ? `linear-gradient(135deg, ${C.accent} 0%, ${C.accent2} 52%, ${C.accent3} 100%)`
-        : variant === "success"
-          ? `linear-gradient(135deg, #059669 0%, ${C.success} 55%, #34d399 100%)`
-          : variant === "danger"
-            ? `linear-gradient(135deg, #dc2626 0%, ${C.danger} 50%, #fb7185 100%)`
-            : "transparent",
-    color: variant === "ghost" ? C.muted : "#ffffff",
-    boxShadow:
-      variant === "primary"
-        ? "0 6px 22px rgba(99, 102, 241, 0.38), 0 3px 12px rgba(236, 72, 153, 0.18)"
-        : variant === "success"
-          ? "0 6px 20px rgba(16, 185, 129, 0.35)"
-          : variant === "danger"
-            ? "0 6px 20px rgba(239, 68, 68, 0.35)"
-            : "none",
-  }),
-  input: {
-    background: C.surface,
-    border: `1px solid ${C.border}`,
-    borderRadius: 10,
-    padding: "11px 14px",
-    color: C.text,
-    width: "100%",
-    outline: "none",
-    boxSizing: "border-box",
-    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
-    boxShadow: "inset 0 1px 2px rgba(99, 102, 241, 0.06)",
-  },
-  badge: (color) => ({
-    padding: "4px 11px",
-    borderRadius: 999,
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "0.03em",
-    textTransform: "uppercase",
-    background:
-      color === "success"
-        ? "linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(52, 211, 153, 0.12))"
-        : color === "warning"
-          ? "linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(251, 191, 36, 0.12))"
-          : color === "danger"
-            ? "linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(251, 113, 133, 0.12))"
-            : "linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))",
-    color:
-      color === "success"
-        ? "#047857"
-        : color === "warning"
-          ? "#b45309"
-          : color === "danger"
-            ? "#b91c1c"
-            : "#4338ca",
-    border: `1px solid ${
-      color === "success"
-        ? "rgba(16, 185, 129, 0.35)"
-        : color === "warning"
-          ? "rgba(245, 158, 11, 0.38)"
-          : color === "danger"
-            ? "rgba(239, 68, 68, 0.38)"
-            : "rgba(99, 102, 241, 0.35)"
-    }`,
-  }),
-};
+      radial-gradient(ellipse 70% 55% at 48% 45%, rgba(192, 38, 211, 0.06), transparent 52%)`;
+
+  return {
+    app: {
+      minHeight: "100vh",
+      backgroundColor: C.bg,
+      backgroundImage: appLayers,
+      color: C.text,
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+    },
+    card: {
+      background: C.surface,
+      border: `1px solid ${C.border}`,
+      borderRadius: 14,
+      padding: "1.5rem",
+      boxShadow: C.cardGlow,
+    },
+    btn: (variant = "primary", size = "md") => ({
+      padding: size === "sm" ? "8px 16px" : "11px 22px",
+      borderRadius: 10,
+      border: variant === "ghost" ? `1px solid ${C.border}` : "none",
+      cursor: "pointer",
+      fontWeight: 600,
+      fontSize: size === "sm" ? 13 : 14,
+      background:
+        variant === "primary"
+          ? `linear-gradient(135deg, ${C.accent} 0%, ${C.accent2} 52%, ${C.accent3} 100%)`
+          : variant === "success"
+            ? `linear-gradient(135deg, #059669 0%, ${C.success} 55%, #34d399 100%)`
+            : variant === "danger"
+              ? `linear-gradient(135deg, #dc2626 0%, ${C.danger} 50%, #fb7185 100%)`
+              : "transparent",
+      color: variant === "ghost" ? C.muted : "#ffffff",
+      boxShadow:
+        variant === "primary"
+          ? "0 6px 22px rgba(99, 102, 241, 0.38), 0 3px 12px rgba(236, 72, 153, 0.18)"
+          : variant === "success"
+            ? "0 6px 20px rgba(16, 185, 129, 0.35)"
+            : variant === "danger"
+              ? "0 6px 20px rgba(239, 68, 68, 0.35)"
+              : "none",
+    }),
+    input: {
+      background: C.surface,
+      border: `1px solid ${C.border}`,
+      borderRadius: 10,
+      padding: "11px 14px",
+      color: C.text,
+      width: "100%",
+      outline: "none",
+      boxSizing: "border-box",
+      transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+      boxShadow: C.inputInset,
+    },
+    badge: (color) => ({
+      padding: "4px 11px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.03em",
+      textTransform: "uppercase",
+      background:
+        color === "success"
+          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(52, 211, 153, 0.12))"
+          : color === "warning"
+            ? "linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(251, 191, 36, 0.12))"
+            : color === "danger"
+              ? "linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(251, 113, 133, 0.12))"
+              : "linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))",
+      color: color === "success" ? badgeFg.success : color === "warning" ? badgeFg.warning : color === "danger" ? badgeFg.danger : badgeFg.default,
+      border: `1px solid ${
+        color === "success"
+          ? "rgba(16, 185, 129, 0.35)"
+          : color === "warning"
+            ? "rgba(245, 158, 11, 0.38)"
+            : color === "danger"
+              ? "rgba(239, 68, 68, 0.38)"
+              : "rgba(99, 102, 241, 0.35)"
+      }`,
+    }),
+  };
+}
 
 // ─── SHARED UI PRIMITIVES ─────────────────────────────────────────────────────
 function Tag({ color = "warning", children }) {
+  const { S } = useTheme();
   return <span style={S.badge(color)}>{children}</span>;
 }
 
 function CopyIconButton({ text, title = "Copy to clipboard" }) {
   const [state, setState] = useState("idle");
+  const { C } = useTheme();
 
   const handle = async (e) => {
     e.preventDefault();
@@ -678,15 +797,17 @@ function CopyIconButton({ text, title = "Copy to clipboard" }) {
   );
 }
 
-function Stat({ label, value, color = C.accent }) {
+function Stat({ label, value, color }) {
+  const { C, S } = useTheme();
+  const fg = color ?? C.accent;
   const tintBg =
-    typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? `${color}18` : `${C.accent}18`;
+    typeof fg === "string" && /^#[0-9a-fA-F]{6}$/.test(fg) ? `${fg}18` : `${C.accent}18`;
   return (
     <div
       style={{
         ...S.card,
         minWidth: 170,
-        flex: 1,
+        flex: "1 1 160px",
         overflow: "hidden",
         position: "relative",
         background: `linear-gradient(155deg, ${tintBg} 0%, ${C.surface} 42%, ${C.surface} 100%)`,
@@ -699,12 +820,12 @@ function Stat({ label, value, color = C.accent }) {
           left: 0,
           right: 0,
           height: 4,
-          background: `linear-gradient(90deg, ${color}, ${C.accent2}, ${C.cyan})`,
+          background: `linear-gradient(90deg, ${fg}, ${C.accent2}, ${C.cyan})`,
           opacity: 0.95,
         }}
       />
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 6, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 700, color, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>
+      <div style={{ fontSize: 30, fontWeight: 700, color: fg, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>
         {value}
       </div>
     </div>
@@ -712,6 +833,7 @@ function Stat({ label, value, color = C.accent }) {
 }
 
 function Modal({ open, onClose, title, children }) {
+  const { C, S } = useTheme();
   if (!open) return null;
   return (
     <div
@@ -720,7 +842,7 @@ function Modal({ open, onClose, title, children }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(15, 23, 42, 0.45)",
+        background: C.modalBackdrop,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -730,7 +852,7 @@ function Modal({ open, onClose, title, children }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ ...S.card, width: "100%", maxWidth: 620, maxHeight: "85vh", overflowY: "auto" }}
+        style={{ ...S.card, width: "100%", maxWidth: "min(620px, calc(100vw - 2rem))", maxHeight: "85vh", overflowY: "auto" }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h3 style={{ margin: 0, fontSize: 19 }}>{title}</h3>
@@ -743,6 +865,7 @@ function Modal({ open, onClose, title, children }) {
 }
 
 function Spinner() {
+  const { C } = useTheme();
   return (
     <div
       style={{
@@ -823,6 +946,7 @@ function useAuth() {
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin, defaultRole = "admin" }) {
+  const { C, S } = useTheme();
   const [id, setId] = useState("");
   const [pass, setPass] = useState("");
   const [role, setRole] = useState(defaultRole);
@@ -847,7 +971,8 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
   };
 
   return (
-    <div className="ha-shell" style={{ ...S.app, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.25rem" }}>
+    <div className="ha-shell" style={{ ...S.app, display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(1rem, 4vw, 1.75rem)" }}>
+      <LoginThemeToolbar />
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div
@@ -932,7 +1057,7 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
                   fontSize: 13,
                   background: role === r ? C.surface : "transparent",
                   color: role === r ? C.text : C.muted,
-                  boxShadow: role === r ? "0 2px 12px rgba(15, 23, 42, 0.08)" : "none",
+                  boxShadow: role === r ? C.loginToggleShadow : "none",
                 }}
               >
                 {r === "admin" ? "Admin" : "Candidate"}
@@ -982,17 +1107,121 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
   );
 }
 
+function LoginThemeToolbar() {
+  const { pref, setPref, C, S, isDark } = useTheme();
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 12,
+        right: 12,
+        zIndex: 50,
+        display: "flex",
+        gap: 4,
+        padding: 4,
+        borderRadius: 12,
+        background: isDark ? "rgba(21, 24, 34, 0.92)" : "rgba(255,255,255,0.88)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        border: `1px solid ${C.border}`,
+        boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 28px rgba(15, 23, 42, 0.12)",
+      }}
+    >
+      {[
+        { id: "light", label: "Light theme", glyph: "☀" },
+        { id: "dark", label: "Dark theme", glyph: "☽" },
+        { id: "system", label: "Match device", glyph: "A" },
+      ].map(({ id, label, glyph }) => (
+        <button
+          key={id}
+          type="button"
+          aria-label={label}
+          title={label}
+          onClick={() => setPref(id)}
+          style={
+            pref === id
+              ? { ...S.btn("primary", "sm"), padding: "6px 11px", minWidth: 40 }
+              : { ...S.btn("ghost", "sm"), padding: "6px 11px", minWidth: 40, border: "1px solid transparent", color: C.muted }
+          }
+        >
+          {glyph}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SettingsView() {
+  const { C, S, pref, setPref, effective } = useTheme();
+  const modes = [
+    { id: "light", label: "Light", hint: "Always use bright theme", glyph: "☀" },
+    { id: "dark", label: "Dark", hint: "Easier at night", glyph: "☽" },
+    { id: "system", label: "Match device", hint: "Follow OS setting", glyph: "A" },
+  ];
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <h1 style={{ margin: "0 0 0.5rem", fontSize: 26, fontWeight: 700 }}>Settings</h1>
+      <p style={{ margin: "0 0 2rem", color: C.muted }}>
+        Active appearance: <strong style={{ color: C.text }}>{effective}</strong>
+        {pref === "system" ? " · follows device" : ""}
+      </p>
+      <div style={S.card}>
+        <h3 style={{ margin: "0 0 0.75rem", fontSize: 16 }}>Appearance</h3>
+        <p style={{ margin: "0 0 1.25rem", fontSize: 14, color: C.muted, lineHeight: 1.55 }}>
+          Choose light, dark, or match what your system uses (saved on this browser).
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {modes.map((m) => {
+            const on = pref === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setPref(m.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  textAlign: "left",
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 12,
+                  border: `2px solid ${on ? C.accent : C.border}`,
+                  background: on ? C.accentDim : C.surface,
+                  cursor: "pointer",
+                  color: C.text,
+                }}
+              >
+                <span style={{ fontSize: 22, width: 32, textAlign: "center", flexShrink: 0 }}>{m.glyph}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontWeight: 700 }}>{m.label}</span>
+                  <span style={{ display: "block", fontSize: 13, color: C.muted, marginTop: 2 }}>{m.hint}</span>
+                </span>
+                {on ? (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>✓</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // Note: Ensure the rest of your sub-components (AdminPanel, etc.) 
 // are pasted below this if they were in the same file.
 // ─── ADMIN PANEL SHELL ────────────────────────────────────────────────────────
 function AdminPanel({ user, onSignOut }) {
+  const { C, S, isDark } = useTheme();
+  const compact = useResponsive(900);
+  const [navOpen, setNavOpen] = useState(false);
   const [view, setView] = useState("dashboard");
   const [tests, setTests] = useState([]);
   const [results, setResults] = useState([]);
   const [loadError, setLoadError] = useState("");
 
-  // Load tests and results from Firestore with realtime updates
   useEffect(() => {
     const unsubTests = onSnapshot(
       collection(db, "tests"),
@@ -1023,23 +1252,83 @@ function AdminPanel({ user, onSignOut }) {
     };
   }, []);
 
+  const go = (id) => {
+    setView(id);
+    if (compact) setNavOpen(false);
+  };
+
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "📊", hue: C.accent },
     { id: "create", label: "Create Test", icon: "➕", hue: C.accent3 },
     { id: "tests", label: "Manage Tests", icon: "📋", hue: C.cyan },
     { id: "monitor", label: "Live Monitor", icon: "👁️", hue: C.warning },
     { id: "results", label: "Results", icon: "📑", hue: C.success },
+    { id: "settings", label: "Settings", icon: "⚙️", hue: C.coral },
   ];
 
+  const sidebarWidth = 232;
+
   return (
-    <div style={{ ...S.app, display: "flex" }}>
-      {/* Sidebar */}
+    <div style={{ ...S.app, display: "flex", position: "relative" }}>
+      {compact && navOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setNavOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 35,
+            border: "none",
+            padding: 0,
+            margin: 0,
+            cursor: "pointer",
+            background: C.modalBackdrop,
+          }}
+        />
+      ) : null}
+
+      {compact ? (
+        <header
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 52,
+            padding: "0 10px 0 6px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 25,
+            background: C.surface,
+            borderBottom: `1px solid ${C.border}`,
+            boxShadow: isDark ? "0 2px 14px rgba(0,0,0,0.4)" : "0 2px 14px rgba(15,23,42,0.08)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation"
+            style={{ ...S.btn("ghost", "sm"), padding: "8px 12px" }}
+          >
+            ☰
+          </button>
+          <span style={{ fontWeight: 800, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>HireAI</span>
+          <span style={{ marginLeft: "auto", fontSize: 12, color: C.muted, fontWeight: 600, maxWidth: "45vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            Admin
+          </span>
+        </header>
+      ) : null}
+
       <aside
         style={{
-          width: 232,
-          background: `linear-gradient(175deg, #fdf4ff 0%, #eef2ff 38%, #ecfeff 72%, #fffbeb 100%)`,
+          width: sidebarWidth,
+          background: C.sidebarGradient,
           borderRight: `1px solid ${C.border}`,
-          boxShadow: "4px 0 36px rgba(99, 102, 241, 0.12)",
+          boxShadow: compact
+            ? `8px 0 40px rgba(0,0,0,${isDark ? 0.55 : 0.15})`
+            : "4px 0 36px rgba(99, 102, 241, 0.12)",
           display: "flex",
           flexDirection: "column",
           padding: "1.5rem 0",
@@ -1047,7 +1336,9 @@ function AdminPanel({ user, onSignOut }) {
           top: 0,
           left: 0,
           bottom: 0,
-          zIndex: 10,
+          zIndex: compact ? 40 : 10,
+          transform: compact && !navOpen ? "translateX(-100%)" : "translateX(0)",
+          transition: "transform 0.22s ease, box-shadow 0.2s ease",
         }}
       >
         <div style={{ padding: "0 1.25rem 1.35rem", borderBottom: `1px solid ${C.border}` }}>
@@ -1069,17 +1360,21 @@ function AdminPanel({ user, onSignOut }) {
               🎯
             </div>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>HireAI</div>
-              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Admin</div>
+              <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+                HireAI
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Admin
+              </div>
             </div>
           </div>
         </div>
-        <nav style={{ flex: 1, padding: "1rem 0.65rem" }}>
+        <nav style={{ flex: 1, padding: "1rem 0.65rem", overflowY: "auto" }}>
           {navItems.map((n) => (
             <button
               key={n.id}
               type="button"
-              onClick={() => setView(n.id)}
+              onClick={() => go(n.id)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1113,18 +1408,27 @@ function AdminPanel({ user, onSignOut }) {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div style={{ marginLeft: 232, flex: 1, padding: "2rem 2.25rem", overflowY: "auto", maxWidth: "calc(100vw - 232px)" }}>
+      <div
+        style={{
+          marginLeft: compact ? 0 : sidebarWidth,
+          flex: 1,
+          padding: compact ? "4.5rem clamp(0.75rem, 3vw, 1.5rem) 1.5rem" : "2rem clamp(1rem, 3vw, 2.25rem)",
+          overflowY: "auto",
+          width: compact ? "100%" : `calc(100% - ${sidebarWidth}px)`,
+          maxWidth: compact ? "100%" : `calc(100vw - ${sidebarWidth}px)`,
+        }}
+      >
         {loadError && (
           <div style={{ ...S.card, border: `1px solid ${C.warning}`, marginBottom: "1rem" }}>
             <div style={{ color: C.warning, fontSize: 13 }}>{loadError}</div>
           </div>
         )}
-        {view === "dashboard" && <AdminDashboard tests={tests} results={results} setView={setView} />}
-        {view === "create" && <CreateTest onCreated={() => setView("tests")} />}
+        {view === "dashboard" && <AdminDashboard tests={tests} results={results} setView={go} />}
+        {view === "create" && <CreateTest onCreated={() => go("tests")} />}
         {view === "tests" && <ManageTests tests={tests} setTests={setTests} />}
         {view === "monitor" && <LiveMonitor />}
         {view === "results" && <ResultsView results={results} />}
+        {view === "settings" && <SettingsView />}
       </div>
     </div>
   );
@@ -1132,6 +1436,8 @@ function AdminPanel({ user, onSignOut }) {
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 function AdminDashboard({ tests, results, setView }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(900);
   const activeTests = tests.filter((t) => t.status === "active").length;
   const avgScore = results.length
     ? Math.round(results.reduce((a, r) => a + (r.score || 0), 0) / results.length) + "%"
@@ -1166,7 +1472,7 @@ function AdminDashboard({ tests, results, setView }) {
         <Stat label="Avg Score" value={avgScore} color={C.coral} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", gap: 16 }}>
         <div style={S.card}>
           <h3 style={{ margin: "0 0 1rem", fontSize: 16, fontWeight: 600 }}>Recent Tests</h3>
           {tests.length === 0 ? (
@@ -1218,6 +1524,7 @@ function AdminDashboard({ tests, results, setView }) {
 }
 
 function LabelInput({ label, value, onChange, placeholder, type = "text", autoComplete }) {
+  const { C, S } = useTheme();
   return (
     <div>
       <label style={{ display: "block", fontSize: 13, color: C.muted, marginBottom: 6 }}>{label}</label>
@@ -1235,6 +1542,7 @@ function LabelInput({ label, value, onChange, placeholder, type = "text", autoCo
 
 /** Direct send via EmailJS, or open mail app as fallback. */
 function InviteEmailBlock({ email, onEmailChange, opts }) {
+  const { C, S } = useTheme();
   const [sending, setSending] = useState(false);
   const [sentOk, setSentOk] = useState(false);
   const directOk = isEmailJsConfigured();
@@ -1370,6 +1678,8 @@ function InviteEmailBlock({ email, onEmailChange, opts }) {
 
 // ─── CREATE TEST ──────────────────────────────────────────────────────────────
 function CreateTest({ onCreated }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(900);
   const [form, setForm] = useState({
     position: "", numQuestions: 10, duration: 30,
     skills: "", candidateName: "", candidateEmail: "", expiryHours: 24,
@@ -1438,7 +1748,7 @@ function CreateTest({ onCreated }) {
       <h1 style={{ margin: "0 0 0.5rem", fontSize: 26, fontWeight: 700 }}>Create Assessment</h1>
       <p style={{ margin: "0 0 2rem", color: C.muted }}>Configure a new recruitment test</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", gap: 24 }}>
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={S.card}>
@@ -1600,6 +1910,8 @@ function CreateTest({ onCreated }) {
 
 // ─── MANAGE TESTS ─────────────────────────────────────────────────────────────
 function ManageTests({ tests, setTests }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(700);
   const [selected, setSelected] = useState(null);
   const [inviteToEmail, setInviteToEmail] = useState("");
 
@@ -1633,7 +1945,17 @@ function ManageTests({ tests, setTests }) {
                 : t.createdAt?.toDate?.() || null;
 
             return (
-              <div key={t.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div
+                key={t.id}
+                style={{
+                  ...S.card,
+                  display: "flex",
+                  flexDirection: compact ? "column" : "row",
+                  alignItems: compact ? "stretch" : "center",
+                  justifyContent: "space-between",
+                  gap: compact ? 12 : 0,
+                }}
+              >
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                     <span style={{ fontSize: 16, fontWeight: 700 }}>{t.position}</span>
@@ -1653,7 +1975,7 @@ function ManageTests({ tests, setTests }) {
                     </div>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", ...(compact ? { width: "100%" } : {}) }}>
                   <button
                     onClick={() => {
                       setInviteToEmail((t.candidateEmail && String(t.candidateEmail)) || "");
@@ -1751,6 +2073,8 @@ function ManageTests({ tests, setTests }) {
 
 // ─── LIVE MONITOR ─────────────────────────────────────────────────────────────
 function LiveMonitor() {
+  const { C, S } = useTheme();
+  const compact = useResponsive(640);
   const [sessions, setSessions] = useState([]);
   const [warningsByCandidate, setWarningsByCandidate] = useState({});
   const [monitorError, setMonitorError] = useState("");
@@ -1821,7 +2145,7 @@ function LiveMonitor() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>Live Monitor</h1>
           <p style={{ margin: "4px 0 0", color: C.muted }}>Active candidates first; finished attempts stay visible with a Finished badge</p>
@@ -1844,7 +2168,7 @@ function LiveMonitor() {
           <DemoMonitorCard />
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
           {sessions.map((s) => (
             <LiveSessionCard
               key={s.id}
@@ -1868,6 +2192,7 @@ function formatFirestoreMs(ms) {
 }
 
 function WarningMessageList({ entries, emptyHint, showHeading = true }) {
+  const { C } = useTheme();
   if (!entries?.length) {
     return emptyHint ? (
       <div style={{ fontSize: 12, color: C.muted, marginTop: 10 }}>{emptyHint}</div>
@@ -1892,6 +2217,7 @@ function WarningMessageList({ entries, emptyHint, showHeading = true }) {
 }
 
 function LiveSessionCard({ session, warningEntries = [] }) {
+  const { C, S } = useTheme();
   const [deleting, setDeleting] = useState(false);
   const isCompleted = session.status === "completed";
   const pctLive = session.numQuestions
@@ -1947,7 +2273,7 @@ function LiveSessionCard({ session, warningEntries = [] }) {
           </div>
         )}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 8, marginBottom: "0.75rem" }}>
         {[
           {
             label: "Question",
@@ -1997,6 +2323,7 @@ function LiveSessionCard({ session, warningEntries = [] }) {
 }
 
 function DemoMonitorCard() {
+  const { C, S } = useTheme();
   return (
     <div style={{ ...S.card, border: `1px solid ${C.accentDim}`, marginTop: "2rem", textAlign: "left" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
@@ -2021,7 +2348,7 @@ function DemoMonitorCard() {
         </div>
         <div style={{ position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: "50%", background: C.success }} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: "0.75rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(88px, 1fr))", gap: 8, marginBottom: "0.75rem" }}>
         {[{ label: "Progress", value: "40%" }, { label: "Time Left", value: "18:24" }, { label: "Warnings", value: 1 }].map((s) => (
           <div key={s.label} style={{ background: C.bg, padding: "8px 10px", borderRadius: 8, textAlign: "center" }}>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{s.value}</div>
@@ -2039,6 +2366,8 @@ function DemoMonitorCard() {
 
 // ─── RESULTS VIEW ─────────────────────────────────────────────────────────────
 function ResultsView({ results }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(780);
   const [selected, setSelected] = useState(null);
   const selectedAnswers =
     selected?.answers ||
@@ -2064,14 +2393,24 @@ function ResultsView({ results }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {results.map((r) => (
-            <div key={r.id} style={{ ...S.card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              key={r.id}
+              style={{
+                ...S.card,
+                display: "flex",
+                flexDirection: compact ? "column" : "row",
+                alignItems: compact ? "stretch" : "center",
+                justifyContent: "space-between",
+                gap: compact ? 14 : 12,
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>{r.candidateName || r.candidateId}</div>
                 <div style={{ fontSize: 13, color: C.muted }}>
                   {r.position} · {r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "—"}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", ...(compact ? { width: "100%", justifyContent: "space-between" } : {}) }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 22, fontWeight: 700, color: r.score >= 70 ? C.success : r.score >= 40 ? C.warning : C.danger }}>
                     {r.score}%
@@ -2088,7 +2427,7 @@ function ResultsView({ results }) {
       <Modal open={!!selected} onClose={() => setSelected(null)} title="Assessment Result">
         {selected && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: "1.5rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 12, marginBottom: "1.5rem" }}>
               <Stat label="Score" value={`${selected.score}%`} color={selected.score >= 70 ? C.success : C.warning} />
               <Stat label="Correct" value={`${selected.correct}/${selected.total}`} color={C.accent} />
               <Stat label="Warnings" value={selected.warnings || 0} color={C.danger} />
@@ -2185,6 +2524,7 @@ function ResultsView({ results }) {
 
 // ─── CANDIDATE PANEL ──────────────────────────────────────────────────────────
 function CandidatePanel({ user, onSignOut }) {
+  const { S } = useTheme();
   const [phase, setPhase] = useState("disclaimer");
   const [testData, setTestData] = useState(null);
   const [result, setResult] = useState(null);
@@ -2219,6 +2559,8 @@ function CandidatePanel({ user, onSignOut }) {
 
 // ─── DISCLAIMER SCREEN ────────────────────────────────────────────────────────
 function DisclaimerScreen({ testData, user, onStart }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(560);
   const [cameraOk, setCameraOk] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const videoRef = useRef(null);
@@ -2258,7 +2600,8 @@ function DisclaimerScreen({ testData, user, onStart }) {
   };
 
   return (
-    <div className="ha-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "2rem", ...S.app }}>
+    <div className="ha-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "clamp(1rem, 4vw, 2rem)", ...S.app }}>
+      <LoginThemeToolbar />
       <div style={{ maxWidth: 620, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div
@@ -2299,7 +2642,7 @@ function DisclaimerScreen({ testData, user, onStart }) {
         {/* Info grid */}
         <div style={{ ...S.card, marginBottom: 16 }}>
           <h3 style={{ margin: "0 0 1rem", fontSize: 16 }}>Test Information</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", gap: 12 }}>
             {[
               { label: "Questions", value: testData.numQuestions },
               { label: "Duration", value: `${testData.duration} minutes` },
@@ -2382,6 +2725,8 @@ function DisclaimerScreen({ testData, user, onStart }) {
 
 // ─── TEST INTERFACE ────────────────────────────────────────────────────────────
 function TestInterface({ testData, user, onComplete }) {
+  const { C, S } = useTheme();
+  const compact = useResponsive(1024);
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState([]);
@@ -3112,14 +3457,28 @@ function TestInterface({ testData, user, onComplete }) {
   const progress = (currentIdx / testData.numQuestions) * 100;
   const q = questions[currentIdx];
 
-  if (submitted) return <div style={S.app}><Spinner /></div>;
+  if (submitted) return (
+    <div style={S.app}>
+      <Spinner />
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", ...S.app }}>
+    <div style={{ display: "flex", flexDirection: compact ? "column" : "row", minHeight: "100vh", ...S.app }}>
+      <LoginThemeToolbar />
+
       {/* ── Question area ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "2rem 2.25rem", maxWidth: 760 }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          padding: compact ? "1rem clamp(0.75rem, 3vw, 1.25rem)" : "2rem 2.25rem",
+          maxWidth: compact ? "100%" : 760,
+        }}
+      >
         {/* Header row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem", gap: 12, flexWrap: compact ? "wrap" : undefined }}>
           <div>
             <div style={{ fontSize: 13, color: C.muted, fontWeight: 600, letterSpacing: "0.02em" }}>
               Question {Math.min(currentIdx + 1, testData.numQuestions)} of {testData.numQuestions}
@@ -3245,21 +3604,25 @@ function TestInterface({ testData, user, onComplete }) {
         )}
       </div>
 
-      {/* ── Right sidebar ── */}
+      {/* ── Proctor sidebar ── */}
       <div
         style={{
-          width: 268,
+          width: compact ? "100%" : 268,
+          maxWidth: "100%",
           background: `linear-gradient(180deg, ${C.surface} 0%, ${C.bgMuted} 100%)`,
-          borderLeft: `1px solid ${C.border}`,
-          boxShadow: "-4px 0 28px rgba(15, 23, 42, 0.06)",
-          padding: "1.5rem",
+          borderLeft: compact ? "none" : `1px solid ${C.border}`,
+          borderTop: compact ? `1px solid ${C.border}` : "none",
+          boxShadow: compact ? "none" : "-4px 0 28px rgba(15, 23, 42, 0.06)",
+          padding: compact ? "1rem clamp(0.75rem, 3vw, 1.25rem)" : "1.5rem",
           display: "flex",
           flexDirection: "column",
           gap: 18,
-          position: "sticky",
-          top: 0,
-          height: "100vh",
+          position: compact ? "relative" : "sticky",
+          top: compact ? undefined : 0,
+          alignSelf: compact ? "stretch" : undefined,
+          height: compact ? "auto" : "100vh",
           overflowY: "auto",
+          flexShrink: 0,
         }}
       >
         {/* Camera feed */}
@@ -3348,8 +3711,10 @@ function TestInterface({ testData, user, onComplete }) {
 
 // ─── COMPLETION SCREEN ────────────────────────────────────────────────────────
 function CompletionScreen({ result }) {
+  const { C, S } = useTheme();
   return (
-    <div className="ha-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "2rem", ...S.app }}>
+    <div className="ha-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "clamp(1rem, 4vw, 2rem)", ...S.app }}>
+      <LoginThemeToolbar />
       <div style={{ maxWidth: 560, width: "100%", textAlign: "center" }}>
         <div
           style={{
@@ -3397,6 +3762,14 @@ function CompletionScreen({ result }) {
 
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
   const { user, signOut } = useAuth();
 
   // Detect candidate link params
