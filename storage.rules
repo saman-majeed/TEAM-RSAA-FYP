@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return firestore.get(
+        /databases/(default)/documents/admins/$(request.auth.uid)
+      ).data != null;
+    }
+
+    // Legacy path (optional)
+    match /sessions/{candidateId}/{file} {
+      allow read: if request.auth != null &&
+        (isAdmin() || request.auth.uid == candidateId);
+      allow write: if request.auth != null &&
+        request.auth.uid == candidateId &&
+        request.resource.size < 2 * 1024 * 1024;
+    }
+
+    // Proctoring screenshots (path must match App.jsx upload path)
+    // Note: do not require contentType — some clients send octet-stream; size cap still applies.
+    match /sessionScreenshots/{testId}/{storageUid}/{fileName} {
+      allow write: if request.auth != null &&
+        request.auth.uid == storageUid &&
+        request.resource.size < 6 * 1024 * 1024;
+      allow read: if request.auth != null &&
+        (request.auth.uid == storageUid || isAdmin());
+    }
+  }
+}
