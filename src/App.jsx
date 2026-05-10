@@ -2610,20 +2610,29 @@ function DisclaimerScreen({ testData, user, onStart }) {
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div
             style={{
-              width: 72,
-              height: 72,
+              width: 86,
+              height: 86,
               margin: "0 auto 1rem",
-              borderRadius: 20,
-              background: `linear-gradient(145deg, ${C.accent}, ${C.cyan}, ${C.accent3})`,
-              border: `1px solid rgba(255,255,255,0.45)`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 34,
-              boxShadow: "0 14px 40px rgba(6, 182, 212, 0.22), 0 8px 28px rgba(236, 72, 153, 0.18)",
             }}
           >
-            🎯
+            <img
+              src="/team-rsaa-circle-logo-transparent.png"
+              alt="TEAM-RSAA logo"
+              width={86}
+              height={86}
+              decoding="async"
+              style={{
+                display: "block",
+                width: 86,
+                height: 86,
+                objectFit: "contain",
+                borderRadius: 999,
+                boxShadow: "0 10px 28px rgba(99, 102, 241, 0.2)",
+              }}
+            />
           </div>
           <h1
             style={{
