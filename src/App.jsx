@@ -945,7 +945,7 @@ function useAuth() {
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin, defaultRole = "admin" }) {
-  const { C, S } = useTheme();
+  const { C, S, isDark } = useTheme();
   const [id, setId] = useState("");
   const [pass, setPass] = useState("");
   const [role, setRole] = useState(defaultRole);
@@ -1009,10 +1009,8 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
               fontSize: 30,
               fontWeight: 800,
               letterSpacing: "-0.03em",
-              background: `linear-gradient(135deg, ${C.accent} 0%, ${C.accent2} 45%, ${C.accent3} 85%, ${C.coral} 115%)`,
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
+              color: isDark ? "#c4b5fd" : "#7c3aed",
+              textShadow: isDark ? "0 2px 14px rgba(129, 140, 248, 0.35)" : "0 1px 8px rgba(124, 58, 237, 0.22)",
             }}
           >
             TEAM-RSAA
