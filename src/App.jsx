@@ -501,7 +501,7 @@ const uid = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 const nowISO = () => new Date().toISOString();
 
 // ─── THEME (light / dark / system) ────────────────────────────────────────────
-const THEME_PREF_KEY = "hireai-appearance";
+const THEME_PREF_KEY = "team-rsaa-appearance";
 
 const ThemeCtx = createContext(null);
 
@@ -721,15 +721,14 @@ function buildStyles(C, isDark) {
               ? "linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(251, 113, 133, 0.12))"
               : "linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12))",
       color: color === "success" ? badgeFg.success : color === "warning" ? badgeFg.warning : color === "danger" ? badgeFg.danger : badgeFg.default,
-      border: `1px solid ${
-        color === "success"
-          ? "rgba(16, 185, 129, 0.35)"
-          : color === "warning"
-            ? "rgba(245, 158, 11, 0.38)"
-            : color === "danger"
-              ? "rgba(239, 68, 68, 0.38)"
-              : "rgba(99, 102, 241, 0.35)"
-      }`,
+      border: `1px solid ${color === "success"
+        ? "rgba(16, 185, 129, 0.35)"
+        : color === "warning"
+          ? "rgba(245, 158, 11, 0.38)"
+          : color === "danger"
+            ? "rgba(239, 68, 68, 0.38)"
+            : "rgba(99, 102, 241, 0.35)"
+        }`,
     }),
   };
 }
@@ -891,7 +890,7 @@ function useAuth() {
 
   const signIn = async (id, pass, role = "admin") => {
     console.log(`Attempting login for: ${id} as ${role}`);
-    await firebaseSignOut(auth).catch(() => {});
+    await firebaseSignOut(auth).catch(() => { });
 
     if (role === "admin") {
       // Logic for Admin login
@@ -937,7 +936,7 @@ function useAuth() {
 
   const signOut = () => {
     sessionStorage.removeItem("rp_user");
-    firebaseSignOut(auth).catch(() => {});
+    firebaseSignOut(auth).catch(() => { });
     setUser(null);
   };
 
@@ -977,34 +976,30 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <div
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              background: `linear-gradient(145deg, ${C.accent}, ${C.accent2}, ${C.accent3})`,
-              border: `1px solid rgba(255,255,255,0.45)`,
-              boxShadow: "0 14px 44px rgba(236, 72, 153, 0.28), 0 8px 24px rgba(99, 102, 241, 0.25)",
+              width: 92,
+              height: 92,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 1.25rem",
-              padding: 13,
+              padding: 0,
               boxSizing: "border-box",
             }}
           >
             <img
-              src="/favicon.svg"
+              src="/team-rsaa-circle-logo-transparent.png"
               alt=""
               role="presentation"
-              width={42}
-              height={40}
+              width={92}
+              height={92}
               decoding="async"
               fetchPriority="high"
               style={{
                 display: "block",
-                width: 42,
+                width: 92,
                 height: "auto",
                 objectFit: "contain",
-                filter: "drop-shadow(0 2px 6px rgba(15, 23, 42, 0.12))",
+                filter: "drop-shadow(0 10px 24px rgba(99, 102, 241, 0.22))",
               }}
             />
           </div>
@@ -1020,10 +1015,10 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
               color: "transparent",
             }}
           >
-            HireAI
+            TEAM-RSAA
           </h1>
           <p style={{ margin: "8px 0 0", color: C.muted, fontSize: 15, lineHeight: 1.45 }}>
-            AI-assisted hiring assessments — secure sign-in
+            Technical Evaluation And Management for Role Specific Adaptive Assessments
           </p>
         </div>
 
@@ -1314,7 +1309,15 @@ function AdminPanel({ user, onSignOut }) {
           >
             ☰
           </button>
-          <span style={{ fontWeight: 800, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>HireAI</span>
+          <img
+            src="/team-rsaa-circle-logo-transparent.png"
+            alt="TEAM-RSAA logo"
+            width={34}
+            height={34}
+            decoding="async"
+            style={{ display: "block", width: 34, height: 34, objectFit: "contain", borderRadius: 999, boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)" }}
+          />
+          <span style={{ fontWeight: 800, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.03em" }}>TEAM-RSAA</span>
           <span style={{ marginLeft: "auto", fontSize: 12, color: C.muted, fontWeight: 600, maxWidth: "45vw", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             Admin
           </span>
@@ -1347,21 +1350,24 @@ function AdminPanel({ user, onSignOut }) {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 11,
-                background: `linear-gradient(135deg, ${C.accent}, ${C.accent2}, ${C.accent3})`,
-                border: `1px solid rgba(255,255,255,0.35)`,
-                boxShadow: "0 6px 18px rgba(99, 102, 241, 0.35)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 18,
+                overflow: "hidden",
               }}
             >
-              🎯
+              <img
+                src="/team-rsaa-circle-logo-transparent.png"
+                alt="TEAM-RSAA logo"
+                width={40}
+                height={40}
+                decoding="async"
+                style={{ display: "block", width: 40, height: 40, objectFit: "contain", borderRadius: 999, boxShadow: "0 6px 16px rgba(99, 102, 241, 0.2)" }}
+              />
             </div>
             <div>
               <div style={{ fontSize: 17, fontWeight: 700, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
-                HireAI
+                TEAM-RSAA
               </div>
               <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Admin
@@ -1572,12 +1578,12 @@ function InviteEmailBlock({ email, onEmailChange, opts }) {
     if (!directOk) {
       alert(
         "To send without opening your mail app, set up EmailJS (free):\n\n" +
-          "1) Create an account at emailjs.com\n" +
-          "2) Add an email service + template. Use variables: to_email, subject, message (and optionally message_html)\n" +
-          "3) Set the template recipient (To) to: {{to_email}}\n" +
-          "4) Copy PUBLIC_KEY, SERVICE_ID, TEMPLATE_ID into .env as VITE_EMAILJS_* (see .env.example)\n" +
-          "5) Restart npm run dev\n\n" +
-          "For now you can use “Open in email app” below.",
+        "1) Create an account at emailjs.com\n" +
+        "2) Add an email service + template. Use variables: to_email, subject, message (and optionally message_html)\n" +
+        "3) Set the template recipient (To) to: {{to_email}}\n" +
+        "4) Copy PUBLIC_KEY, SERVICE_ID, TEMPLATE_ID into .env as VITE_EMAILJS_* (see .env.example)\n" +
+        "5) Restart npm run dev\n\n" +
+        "For now you can use “Open in email app” below.",
       );
       return;
     }
@@ -3443,8 +3449,8 @@ function TestInterface({ testData, user, onComplete }) {
       const hint = err?.code || err?.message || String(err);
       alert(
         `Submission failed: ${hint}\n\n` +
-          "If this says permission-denied, deploy updated Firestore rules. " +
-          "If the document is too large, try fewer questions or set VITE_PROCTORING_STORAGE=storage.",
+        "If this says permission-denied, deploy updated Firestore rules. " +
+        "If the document is too large, try fewer questions or set VITE_PROCTORING_STORAGE=storage.",
       );
       submitRef.current = false;
       setSubmitted(false);
