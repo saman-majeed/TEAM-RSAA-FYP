@@ -29,3 +29,7 @@ certs/
 
 # Firebase CLI local hosting cache
 .firebase/
+
+# Service account keys (never commit)
+serviceAccountKey.json
+*-firebase-adminsdk-*.json

@@ -893,23 +893,31 @@ function useAuth() {
     await firebaseSignOut(auth).catch(() => { });
 
     if (role === "admin") {
-      // Logic for Admin login
-      const adminDoc = await dbGet("admins", id.trim());
-      console.log("Firestore Admin Data found:", adminDoc);
+      const loginId = id.trim();
+      // Try both patterns:
+      // 1) admins/{loginId} doc id matches typed username/email
+      // 2) any admins doc where email == typed username/email
+      const [byDocId, byEmail] = await Promise.all([
+        dbGet("admins", loginId),
+        dbQuery("admins", "email", loginId),
+      ]);
+      const adminDoc = byDocId || byEmail?.[0] || null;
+      console.log("Resolved admin document:", adminDoc);
 
-      // Check against the field names found in your Firestore screenshot
-      if (adminDoc && adminDoc.role === "admin") {
-        // Checking if password field is 'admin' or 'password'
-        const correctPass = adminDoc.admin || adminDoc.password;
-
-        if (correctPass === pass) {
-          const u = { uid: id, name: adminDoc.email || "Admin", role: "admin" };
-          sessionStorage.setItem("rp_user", JSON.stringify(u));
-          setUser(u);
-          return { ok: true };
-        }
+      if (!adminDoc) {
+        return { ok: false, error: "Admin not found. Create an `admins` document with email/password." };
       }
-      return { ok: false, error: "Invalid admin credentials. Check Firestore fields." };
+
+      const correctPass = adminDoc.admin || adminDoc.password || adminDoc.pass;
+      if (correctPass !== pass) {
+        return { ok: false, error: "Invalid admin credentials. Password does not match." };
+      }
+
+      const uid = adminDoc.id || loginId;
+      const u = { uid, name: adminDoc.email || adminDoc.name || "Admin", role: "admin" };
+      sessionStorage.setItem("rp_user", JSON.stringify(u));
+      setUser(u);
+      return { ok: true };
     } else {
       // Logic for Candidate login
       const cands = await dbQuery("candidates", "candidateId", id.trim());
@@ -962,8 +970,18 @@ function LoginScreen({ onLogin, defaultRole = "admin" }) {
       if (res.ok) onLogin(res);
       else setError(res.error);
     } catch (err) {
-      setError("Database connection error");
-      console.error(err);
+      const code = err?.code;
+      const msg = err?.message || String(err);
+      console.error("Login / Firestore error:", code, err);
+      if (code === "permission-denied") {
+        setError("Firestore blocked this read. Deploy rules: firebase deploy --only firestore:rules");
+      } else if (code === "unavailable" || code === "failed-precondition") {
+        setError("Cannot reach Firestore. Enable Firestore (Native) in Firebase Console for this project.");
+      } else if (code === "invalid-api-key" || /api[- ]?key/i.test(msg)) {
+        setError("Invalid Firebase API key. Check .env matches your new Firebase web app, then restart npm run dev.");
+      } else {
+        setError(msg ? `Database error: ${msg}` : "Database connection error");
+      }
     } finally {
       setLoading(false);
     }

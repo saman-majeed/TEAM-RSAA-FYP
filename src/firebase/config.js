@@ -10,15 +10,26 @@ import { getFunctions } from "firebase/functions";
 
 const env = import.meta.env;
 
+/** Trim + strip surrounding quotes — avoids broken config when .env has `KEY= "value"`. */
+function envStr(key) {
+    const raw = env[key];
+    if (raw == null || typeof raw !== "string") return "";
+    let s = raw.trim();
+    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.slice(1, -1).trim();
+    }
+    return s;
+}
+
 const firebaseConfig = {
-    apiKey: env.VITE_FIREBASE_API_KEY,
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: env.VITE_FIREBASE_APP_ID,
-    ...(env.VITE_FIREBASE_MEASUREMENT_ID?.trim()
-        ? { measurementId: env.VITE_FIREBASE_MEASUREMENT_ID.trim() }
+    apiKey: envStr("VITE_FIREBASE_API_KEY"),
+    authDomain: envStr("VITE_FIREBASE_AUTH_DOMAIN"),
+    projectId: envStr("VITE_FIREBASE_PROJECT_ID"),
+    storageBucket: envStr("VITE_FIREBASE_STORAGE_BUCKET"),
+    messagingSenderId: envStr("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+    appId: envStr("VITE_FIREBASE_APP_ID"),
+    ...(envStr("VITE_FIREBASE_MEASUREMENT_ID")
+        ? { measurementId: envStr("VITE_FIREBASE_MEASUREMENT_ID") }
         : {}),
 };
 
